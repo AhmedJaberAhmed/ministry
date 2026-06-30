@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClassTrack — Student Performance Monitoring &amp; QR-Based Attendance</title>
+<style>
+:root{
+  --blue:#1F4E96;
+  --blue-deep:#15376b;
+  --orange:#F47920;
+  --orange-deep:#d9650f;
+  --ink:#0f1b2d;
+  --paper:#f6f7fa;
+  --line:#dde3ee;
+  --mute:#5b6b85;
+  --white:#ffffff;
+  --mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:var(--sans);
+  color:var(--ink);
+  background:var(--paper);
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--orange); color:var(--white);}
+
+/* ---------- shared layout ---------- */
+.wrap{max-width:1120px; margin:0 auto; padding:0 32px;}
+section{padding:96px 0;}
+.eyebrow{
+  font-family:var(--mono);
+  text-transform:uppercase;
+  letter-spacing:.14em;
+  font-size:12px;
+  color:var(--orange-deep);
+  font-weight:700;
+  margin-bottom:14px;
+  display:flex; align-items:center; gap:10px;
+}
+.eyebrow::before{content:""; width:22px; height:2px; background:var(--orange); display:inline-block;}
+h1,h2,h3{font-weight:800; letter-spacing:-0.02em; line-height:1.1;}
+h2{font-size:clamp(28px,3.4vw,40px); color:var(--blue-deep);}
+p{color:var(--mute);}
+.section-head{max-width:680px; margin-bottom:48px;}
+.section-head p{font-size:17px; margin-top:14px;}
+
+/* ---------- nav ---------- */
+nav{
+  position:sticky; top:0; z-index:50;
+  background:rgba(246,247,250,.88);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+nav .wrap{
+  display:flex; align-items:center; justify-content:space-between;
+  height:68px;
+}
+.brand{display:flex; align-items:center; gap:10px; font-weight:800; font-size:17px; color:var(--blue-deep);}
+.brand .dot{width:10px; height:10px; border-radius:3px; background:var(--orange);}
+nav ul{list-style:none; display:flex; gap:30px;}
+nav a{color:var(--ink); text-decoration:none; font-size:14px; font-weight:600; opacity:.72; transition:opacity .15s;}
+nav a:hover, nav a:focus-visible{opacity:1; color:var(--blue);}
+
+/* ---------- hero ---------- */
+.hero{
+  position:relative;
+  padding:120px 0 100px;
+  background:
+    radial-gradient(900px 500px at 85% -10%, rgba(31,78,150,.10), transparent 60%),
+    radial-gradient(700px 420px at -5% 110%, rgba(244,121,32,.10), transparent 60%),
+    var(--paper);
+  overflow:hidden;
+  border-bottom:1px solid var(--line);
+}
+.hero .grid{
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(31,78,150,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31,78,150,.05) 1px, transparent 1px);
+  background-size:48px 48px;
+  mask-image:linear-gradient(to bottom, black, transparent 75%);
+}
+.hero-inner{position:relative; display:grid; grid-template-columns:1.15fr .85fr; gap:56px; align-items:center;}
+.hero h1{font-size:clamp(36px,5vw,58px); color:var(--ink);}
+.hero h1 span{color:var(--blue);}
+.hero .lede{font-size:18px; margin-top:20px; max-width:560px;}
+.tagrow{display:flex; flex-wrap:wrap; gap:10px; margin-top:28px;}
+.tag{
+  font-family:var(--mono); font-size:12px; font-weight:600;
+  border:1px solid var(--line); background:var(--white);
+  color:var(--blue-deep); padding:7px 12px; border-radius:999px;
+}
+.cta-row{display:flex; gap:14px; margin-top:36px; flex-wrap:wrap;}
+.btn{
+  font-weight:700; font-size:14.5px; padding:14px 24px; border-radius:10px;
+  text-decoration:none; display:inline-flex; align-items:center; gap:8px;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.btn-primary{background:var(--blue); color:var(--white); box-shadow:0 10px 24px -8px rgba(31,78,150,.55);}
+.btn-primary:hover{transform:translateY(-2px);}
+.btn-ghost{border:1.5px solid var(--line); color:var(--ink); background:var(--white);}
+.btn-ghost:hover{border-color:var(--blue); color:var(--blue); transform:translateY(-2px);}
+
+/* the "scan" signature card */
+.scan-card{
+  position:relative;
+  background:var(--blue-deep);
+  border-radius:20px;
+  padding:30px;
+  color:var(--white);
+  box-shadow:0 30px 60px -20px rgba(15,27,45,.45);
+  overflow:hidden;
+}
+.scan-card::after{
+  content:""; position:absolute; inset:0;
+  background:linear-gradient(135deg, rgba(244,121,32,.18), transparent 55%);
+}
+.scan-top{display:flex; justify-content:space-between; align-items:center; font-family:var(--mono); font-size:12px; opacity:.8; position:relative;}
+.qr-box{
+  margin:22px auto; width:172px; height:172px; position:relative;
+  background:repeating-linear-gradient(0deg,#fff 0 6px, transparent 6px 12px),
+             repeating-linear-gradient(90deg,#fff 0 6px, transparent 6px 12px);
+  background-blend-mode:screen;
+  border-radius:14px;
+}
+.qr-box .corner{position:absolute; width:34px; height:34px; border:6px solid var(--orange); border-radius:6px;}
+.qr-box .c1{top:8px; left:8px; border-right:none; border-bottom:none;}
+.qr-box .c2{top:8px; right:8px; border-left:none; border-bottom:none;}
+.qr-box .c3{bottom:8px; left:8px; border-right:none; border-top:none;}
+.scan-line{position:absolute; left:8px; right:8px; height:2px; background:var(--orange); box-shadow:0 0 12px 2px var(--orange); animation:scan 2.4s ease-in-out infinite;}
+@keyframes scan{0%,100%{top:8px;} 50%{top:160px;}}
+.timer-ring{
+  position:relative; display:flex; align-items:center; justify-content:center; gap:10px;
+  font-family:var(--mono); font-size:13px;
+}
+.dotpulse{width:8px; height:8px; border-radius:50%; background:#37d67a; box-shadow:0 0 0 0 rgba(55,214,122,.6); animation:pulse 1.8s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(55,214,122,.55);}70%{box-shadow:0 0 0 10px rgba(55,214,122,0);}100%{box-shadow:0 0 0 0 rgba(55,214,122,0);}}
+.scan-foot{display:flex; justify-content:space-between; margin-top:22px; font-size:13px; position:relative;}
+.scan-foot b{color:var(--orange); font-weight:800;}
+
+@media (prefers-reduced-motion: reduce){
+  .scan-line, .dotpulse{animation:none;}
+}
+
+/* ---------- problem ---------- */
+.problem-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:18px;}
+.pcard{
+  background:var(--white); border:1px solid var(--line); border-radius:14px;
+  padding:24px; position:relative; overflow:hidden;
+}
+.pcard .num{font-family:var(--mono); font-size:12px; color:var(--orange-deep); font-weight:700;}
+.pcard h3{font-size:17px; margin:10px 0 8px; color:var(--ink);}
+.pcard p{font-size:14px;}
+
+.compare{
+  margin-top:48px; display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--line); border-radius:16px; overflow:hidden;
+}
+.compare > div{padding:28px 30px;}
+.compare .now{background:var(--white);}
+.compare .next{background:var(--blue-deep); color:#dbe6f7;}
+.compare h4{font-size:13px; text-transform:uppercase; letter-spacing:.1em; font-family:var(--mono); margin-bottom:16px;}
+.compare .now h4{color:var(--mute);}
+.compare .next h4{color:#ffb380;}
+.compare ul{list-style:none; display:flex; flex-direction:column; gap:12px;}
+.compare li{font-size:14.5px; display:flex; gap:10px;}
+.compare .now li::before{content:"—"; color:#c9425a; font-weight:800;}
+.compare .next li::before{content:"✓"; color:var(--orange); font-weight:800;}
+
+/* ---------- pipeline / how it works ---------- */
+.pipeline{display:grid; grid-template-columns:repeat(5,1fr); gap:0; position:relative; margin-top:10px;}
+.pipeline::before{
+  content:""; position:absolute; top:34px; left:6%; right:6%; height:2px;
+  background:repeating-linear-gradient(90deg, var(--line) 0 8px, transparent 8px 16px);
+}
+.pstep{position:relative; text-align:center; padding:0 10px;}
+.pstep .circ{
+  width:68px; height:68px; border-radius:50%; background:var(--white); border:2px solid var(--blue);
+  display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-family:var(--mono);
+  font-weight:800; color:var(--blue); position:relative; z-index:2; font-size:13px;
+}
+.pstep h4{font-size:14.5px; margin-bottom:6px;}
+.pstep p{font-size:12.5px;}
+
+/* ---------- architecture ---------- */
+.stack{display:grid; grid-template-columns:repeat(4,1fr); gap:16px;}
+.stack-card{
+  background:var(--white); border:1px solid var(--line); border-radius:14px; padding:22px;
+  border-top:3px solid var(--blue);
+}
+.stack-card.alt{border-top-color:var(--orange);}
+.stack-card h4{font-size:15px; margin-bottom:6px;}
+.stack-card p{font-size:13px;}
+.stack-card .role{
+  font-family:var(--mono); font-size:11px; color:var(--orange-deep); font-weight:700; text-transform:uppercase;
+  letter-spacing:.06em; margin-bottom:10px; display:block;
+}
+
+/* ---------- AI module ---------- */
+.ai-wrap{display:grid; grid-template-columns:1.1fr .9fr; gap:48px; align-items:center;}
+.metric-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.metric{
+  background:var(--white); border:1px solid var(--line); border-radius:14px; padding:20px;
+}
+.metric .val{font-size:30px; font-weight:800; color:var(--blue-deep); font-family:var(--mono);}
+.metric .lbl{font-size:12.5px; color:var(--mute); margin-top:4px;}
+.metric.hi .val{color:var(--orange-deep);}
+
+.distance-bar{margin-top:26px;}
+.dbar-row{display:flex; align-items:center; gap:12px; margin-bottom:10px; font-size:12.5px;}
+.dbar-row .lbl{width:150px; color:var(--mute); flex-shrink:0;}
+.dbar-track{flex:1; height:10px; background:var(--line); border-radius:99px; overflow:hidden;}
+.dbar-fill{height:100%; border-radius:99px; background:linear-gradient(90deg, var(--blue), var(--orange));}
+
+/* ---------- prediction ---------- */
+.predict-card{
+  background:var(--white); border:1px solid var(--line); border-radius:16px; padding:32px;
+}
+.eq{
+  font-family:var(--mono); background:var(--ink); color:#cfe0ff; border-radius:12px; padding:20px 22px;
+  font-size:13.5px; overflow-x:auto; line-height:1.7;
+}
+.eq .k{color:var(--orange);}
+.weeks{display:flex; align-items:center; gap:0; margin-top:30px;}
+.week{flex:1; text-align:center; position:relative; padding-top:30px;}
+.week::before{content:""; position:absolute; top:8px; left:50%; width:12px; height:12px; border-radius:50%; background:var(--line); transform:translateX(-50%);}
+.week.now::before{background:var(--orange); box-shadow:0 0 0 5px rgba(244,121,32,.18);}
+.week.mid::before{background:var(--mute);}
+.week span{font-size:11.5px; color:var(--mute); font-family:var(--mono);}
+.week b{display:block; font-size:13px; margin-top:4px;}
+.weeks-line{position:relative; height:2px; background:var(--line); margin:0 0 -2px;}
+
+/* ---------- results / testing ---------- */
+.result-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px;}
+.rcard{background:var(--blue-deep); color:#dbe6f7; border-radius:14px; padding:24px;}
+.rcard .big{font-family:var(--mono); font-size:32px; font-weight:800; color:#fff;}
+.rcard .sm{font-size:12.5px; margin-top:6px; opacity:.85;}
+.rcard.orange{background:var(--orange-deep);}
+
+/* ---------- team ---------- */
+.team-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px;}
+.member{
+  background:var(--white); border:1px solid var(--line); border-radius:12px; padding:18px; text-align:center;
+}
+.member .avatar{
+  width:80px; height:80px; border-radius:50%; margin:0 auto 12px; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg, var(--blue), var(--blue-deep)); color:#fff; font-weight:800; font-family:var(--mono); font-size:14px;
+  overflow:hidden;
+}
+.member .avatar img{
+  width:100%; height:100%; object-fit:cover; border-radius:50%;
+}
+.member p{font-size:13.5px; font-weight:600; color:var(--ink);}
+.supervise{margin-top:28px; text-align:center; font-size:14px; color:var(--mute);}
+.supervise b{color:var(--blue-deep);}
+
+/* ---------- footer / CTA ---------- */
+.closer{
+  background:var(--blue-deep); color:#fff; text-align:center; padding:90px 0; position:relative; overflow:hidden;
+}
+.closer::before{
+  content:""; position:absolute; width:600px; height:600px; border-radius:50%;
+  background:radial-gradient(circle, rgba(244,121,32,.22), transparent 65%);
+  top:-260px; right:-160px;
+}
+.closer h2{color:#fff;}
+.closer p{color:#cdd9ef; max-width:560px; margin:16px auto 0;}
+.closer .btn-primary{background:var(--orange); box-shadow:0 10px 24px -8px rgba(244,121,32,.55); margin-top:30px;}
+footer{padding:28px 0; text-align:center; font-size:12.5px; color:var(--mute); font-family:var(--mono);}
+
+@media (max-width:920px){
+  nav ul{display:none;}
+  .hero-inner{grid-template-columns:1fr;}
+  .problem-grid, .stack, .result-grid{grid-template-columns:1fr 1fr;}
+  .ai-wrap{grid-template-columns:1fr;}
+  .compare{grid-template-columns:1fr;}
+  .pipeline{grid-template-columns:1fr; gap:28px;}
+  .pipeline::before{display:none;}
+  .team-grid{grid-template-columns:1fr 1fr;}
+}
+@media (max-width:560px){
+  section{padding:64px 0;}
+  .problem-grid, .stack, .result-grid, .team-grid{grid-template-columns:1fr;}
+}
+
+/* ---------- scroll reveal ---------- */
+.reveal{opacity:0; transform:translateY(28px); transition:opacity .7s cubic-bezier(.16,.84,.44,1), transform .7s cubic-bezier(.16,.84,.44,1);}
+.reveal.in{opacity:1; transform:translateY(0);}
+.reveal-stagger > *{opacity:0; transform:translateY(22px); transition:opacity .6s cubic-bezier(.16,.84,.44,1), transform .6s cubic-bezier(.16,.84,.44,1);}
+.reveal-stagger.in > *{opacity:1; transform:translateY(0);}
+.reveal-stagger.in > *:nth-child(1){transition-delay:.05s;}
+.reveal-stagger.in > *:nth-child(2){transition-delay:.13s;}
+.reveal-stagger.in > *:nth-child(3){transition-delay:.21s;}
+.reveal-stagger.in > *:nth-child(4){transition-delay:.29s;}
+.reveal-stagger.in > *:nth-child(5){transition-delay:.37s;}
+.reveal-stagger.in > *:nth-child(6){transition-delay:.45s;}
+.reveal-stagger.in > *:nth-child(7){transition-delay:.53s;}
+.reveal-stagger.in > *:nth-child(8){transition-delay:.61s;}
+
+/* ---------- hover micro-interactions ---------- */
+.pcard, .stack-card, .metric, .member, .rcard{transition:transform .25s ease, box-shadow .25s ease, border-color .25s ease;}
+.pcard:hover, .stack-card:hover, .metric:hover{transform:translateY(-6px); box-shadow:0 18px 34px -18px rgba(15,27,45,.25); border-color:var(--blue);}
+.rcard:hover{transform:translateY(-6px) scale(1.015); box-shadow:0 22px 40px -16px rgba(15,27,45,.4);}
+.member{transition:transform .25s ease, box-shadow .25s ease;}
+.member:hover{transform:translateY(-4px); box-shadow:0 14px 24px -14px rgba(15,27,45,.25);}
+.member:hover .avatar{transform:scale(1.1) rotate(-4deg);}
+.avatar{transition:transform .3s cubic-bezier(.34,1.56,.64,1);}
+
+.pstep .circ{transition:transform .3s ease, background .3s ease, color .3s ease;}
+.pstep:hover .circ{transform:scale(1.12); background:var(--blue); color:#fff;}
+
+.tag{transition:transform .2s ease, border-color .2s ease, color .2s ease;}
+.tag:hover{transform:translateY(-2px); border-color:var(--orange); color:var(--orange-deep);}
+
+.dbar-fill{width:0 !important; transition:width 1.1s cubic-bezier(.16,.84,.44,1);}
+.dbar-row.in .dbar-fill{transition-delay:.15s;}
+
+.countup{display:inline-block;}
+
+nav a{position:relative;}
+nav a::after{
+  content:""; position:absolute; left:0; bottom:-6px; width:0; height:2px; background:var(--orange);
+  transition:width .25s ease;
+}
+nav a:hover::after, nav a.active::after{width:100%;}
+
+.hero-inner > div:first-child > *{opacity:0; transform:translateY(18px); animation:rise .7s cubic-bezier(.16,.84,.44,1) forwards;}
+.hero-inner .eyebrow{animation-delay:.05s;}
+.hero-inner h1{animation-delay:.16s;}
+.hero-inner .lede{animation-delay:.28s;}
+.hero-inner .tagrow{animation-delay:.4s;}
+.hero-inner .cta-row{animation-delay:.52s;}
+@keyframes rise{to{opacity:1; transform:translateY(0);}}
+.scan-card{opacity:0; transform:translateY(18px) scale(.97); animation:riseCard .8s .3s cubic-bezier(.16,.84,.44,1) forwards;}
+@keyframes riseCard{to{opacity:1; transform:translateY(0) scale(1);}}
+
+.btn-primary{position:relative; overflow:hidden;}
+.btn-primary::before{
+  content:""; position:absolute; top:0; left:-60%; width:40%; height:100%;
+  background:linear-gradient(120deg, transparent, rgba(255,255,255,.35), transparent);
+  transform:skewX(-20deg);
+}
+.btn-primary:hover::before{animation:shine .9s ease;}
+@keyframes shine{from{left:-60%;} to{left:130%;}}
+
+.eq{transition:filter .5s ease, opacity .5s ease;}
+.eq .k{display:inline-block;}
+.equation.in .k{animation:pop .5s cubic-bezier(.34,1.56,.64,1) backwards;}
+.equation.in .k:nth-of-type(1){animation-delay:.05s;}
+.equation.in .k:nth-of-type(2){animation-delay:.15s;}
+.equation.in .k:nth-of-type(3){animation-delay:.25s;}
+.equation.in .k:nth-of-type(4){animation-delay:.35s;}
+.equation.in .k:nth-of-type(5){animation-delay:.45s;}
+@keyframes pop{from{opacity:0; transform:translateY(6px) scale(.8);} to{opacity:1; transform:translateY(0) scale(1);}}
+
+.week::before{transition:background .3s ease, box-shadow .3s ease, transform .3s ease;}
+.week:hover::before{transform:translateX(-50%) scale(1.3);}
+
+#progress{
+  position:fixed; top:0; left:0; height:3px; width:0%;
+  background:linear-gradient(90deg, var(--blue), var(--orange));
+  z-index:100; transition:width .1s linear;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .reveal, .reveal-stagger > *, .hero-inner > div:first-child > *, .scan-card, .equation.in .k{
+    animation:none !important; transition:none !important; opacity:1 !important; transform:none !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><span class="dot"></span>ClassTrack</div>
+    <ul>
+      <li><a href="#problem">The Problem</a></li>
+      <li><a href="#how">How It Works</a></li>
+      <li><a href="#ai">AI Engine</a></li>
+      <li><a href="#results">Results</a></li>
+      <li><a href="#team">Team</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="grid" aria-hidden="true"></div>
+  <div class="wrap hero-inner">
+    <div>
+      <div class="eyebrow">Graduation Project · MTI University · 2025/2026</div>
+      <h1>Attendance you can <span>trust</span>. Risk you can <span>see</span> early.</h1>
+      <p class="lede">ClassTrack is a mobile platform that replaces paper roll-calls with a 10-second expiring QR code verified by facial recognition, and turns attendance and grade data into an early-warning signal for at-risk students &mdash; weeks before the midterm.</p>
+      <div class="tagrow">
+        <span class="tag">Flutter · Dart</span>
+        <span class="tag">Supabase · PostgreSQL</span>
+        <span class="tag">Flask REST API</span>
+        <span class="tag">YOLOv8 + FaceNet-512</span>
+        <span class="tag">Linear Regression</span>
+        <span class="tag">Offline-First</span>
+      </div>
+      <div class="cta-row">
+        <a href="#how" class="btn btn-primary">See how it works ↓</a>
+        <a href="#results" class="btn btn-ghost">View test results</a>
+      </div>
+    </div>
+
+    <div class="scan-card">
+      <div class="scan-top">
+        <span>SESSION QR — CS302</span>
+        <span style="color:#ffb380;">● LIVE</span>
+      </div>
+      <div class="qr-box">
+        <div class="corner c1"></div>
+        <div class="corner c2"></div>
+        <div class="corner c3"></div>
+        <div class="scan-line"></div>
+      </div>
+      <div class="timer-ring"><span class="dotpulse"></span> Token expires in 10s — refreshes automatically</div>
+      <div class="scan-foot">
+        <span>Face match distance</span>
+        <b>0.38 / 0.70 threshold</b>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="problem">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">The Problem</div>
+      <h2>At most Egyptian universities, monitoring is reactive — not predictive.</h2>
+      <p>A student's academic standing is usually judged only after the midterm. By then, the data needed to help them arrives too late, and it was never reliable to begin with.</p>
+    </div>
+    <div class="problem-grid reveal-stagger">
+      <div class="pcard">
+        <div class="num">01</div>
+        <h3>Lost teaching time</h3>
+        <p>Manual roll-call consumes 12–15 minutes per session — six to eight hours of instruction lost per course, per semester.</p>
+      </div>
+      <div class="pcard">
+        <div class="num">02</div>
+        <h3>Proxy attendance</h3>
+        <p>Paper sign-in sheets and unverified QR scans are easy to game, which makes attendance data unfit to feed any prediction.</p>
+      </div>
+      <div class="pcard">
+        <div class="num">03</div>
+        <h3>Fragmented records</h3>
+        <p>Grades, quizzes, assignments and attendance live in separate systems — the Registrar, paper logs, personal spreadsheets.</p>
+      </div>
+      <div class="pcard">
+        <div class="num">04</div>
+        <h3>Warning comes too late</h3>
+        <p>Struggling students are typically identified around Week 8, after the midterm — past the point where intervention works best.</p>
+      </div>
+    </div>
+
+    <div class="compare reveal">
+      <div class="now">
+        <h4>Today, at most universities</h4>
+        <ul>
+          <li>Attendance recorded on paper, open to proxy signing</li>
+          <li>Risk identified only after the midterm (~Week 8)</li>
+          <li>No system works once the network drops</li>
+          <li>Grades entered and re-entered by hand across sheets</li>
+        </ul>
+      </div>
+      <div class="next">
+        <h4>With ClassTrack</h4>
+        <ul>
+          <li>10-second QR token + facial verification, every scan</li>
+          <li>At-risk students flagged from Week 3</li>
+          <li>Offline-first — scans and grades sync once reconnected</li>
+          <li>Structured entry plus validated Excel bulk import</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how" style="background:var(--white); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">How It Works</div>
+      <h2>One scan, three layers of trust.</h2>
+      <p>Every attendance record on ClassTrack is the product of a token that expires, a face that's verified, and a database that never blocks on a missing connection.</p>
+    </div>
+    <div class="pipeline reveal-stagger">
+      <div class="pstep">
+        <div class="circ">1</div>
+        <h4>Faculty generates QR</h4>
+        <p>A session-specific token is created and refreshed every 10 seconds.</p>
+      </div>
+      <div class="pstep">
+        <div class="circ">2</div>
+        <h4>Student scans</h4>
+        <p>The app reads the live token before it can be reused or shared.</p>
+      </div>
+      <div class="pstep">
+        <div class="circ">3</div>
+        <h4>Face verified</h4>
+        <p>YOLOv8 detects the face; FaceNet-512 confirms identity in ~190ms.</p>
+      </div>
+      <div class="pstep">
+        <div class="circ">4</div>
+        <h4>Stored — online or off</h4>
+        <p>Writes go to Supabase, or queue locally in SQLite if offline.</p>
+      </div>
+      <div class="pstep">
+        <div class="circ">5</div>
+        <h4>Risk surfaces live</h4>
+        <p>Attendance feeds the prediction model on the faculty dashboard.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="architecture">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Architecture</div>
+      <h2>Four roles, one platform.</h2>
+      <p>Students, faculty, teaching assistants and administrators each get a purpose-built view over the same secured data layer.</p>
+    </div>
+    <div class="stack reveal-stagger">
+      <div class="stack-card">
+        <span class="role">Frontend</span>
+        <h4>Flutter mobile app</h4>
+        <p>Single codebase for Android &amp; iOS. Offline-first: scanning, grading and dashboards keep working without a connection.</p>
+      </div>
+      <div class="stack-card">
+        <span class="role">Backend</span>
+        <h4>Supabase / PostgreSQL</h4>
+        <p>19 relational tables, Row-Level Security and real-time sync enforce role-based access per user type.</p>
+      </div>
+      <div class="stack-card alt">
+        <span class="role">AI Service</span>
+        <h4>Flask REST API</h4>
+        <p>A decoupled Python microservice runs the face-recognition and grade-prediction models, callable independently.</p>
+      </div>
+      <div class="stack-card alt">
+        <span class="role">Local Storage</span>
+        <h4>SQLite on-device</h4>
+        <p>An encrypted offline queue captures every write during an outage and replays it automatically on reconnect.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ai" style="background:var(--white); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">AI Engine — Identity</div>
+      <h2>Eliminating proxy attendance with biometric verification.</h2>
+      <p>A face is converted to a 512-number fingerprint and compared by distance, not by photo — robust to lighting, angle and expression.</p>
+    </div>
+    <div class="ai-wrap">
+      <div class="reveal">
+        <div class="metric-grid">
+          <div class="metric"><div class="val"><span class="countup" data-target="94.3" data-suffix="%" data-decimals="1">0%</span></div><div class="lbl">True Acceptance Rate</div></div>
+          <div class="metric hi"><div class="val">&lt;0.1%</div><div class="lbl">False Acceptance Rate</div></div>
+          <div class="metric"><div class="val"><span class="countup" data-target="187" data-suffix="ms">0ms</span></div><div class="lbl">Mean recognition time</div></div>
+          <div class="metric hi"><div class="val"><span class="countup" data-target="0">0</span></div><div class="lbl">False accepts in 50 impostor tests</div></div>
+        </div>
+        <div class="distance-bar">
+          <div class="dbar-row"><span class="lbl">Normal lighting</span><div class="dbar-track"><div class="dbar-fill" style="--target-width:97.1%"></div></div><span>97.1%</span></div>
+          <div class="dbar-row"><span class="lbl">Side lighting</span><div class="dbar-track"><div class="dbar-fill" style="--target-width:95.6%"></div></div><span>95.6%</span></div>
+          <div class="dbar-row"><span class="lbl">Overhead glare</span><div class="dbar-track"><div class="dbar-fill" style="--target-width:93.4%"></div></div><span>93.4%</span></div>
+          <div class="dbar-row"><span class="lbl">Low light (&lt;50 lux)</span><div class="dbar-track"><div class="dbar-fill" style="--target-width:88.2%"></div></div><span>88.2%</span></div>
+        </div>
+      </div>
+      <div class="reveal">
+        <h3 style="font-size:18px; margin-bottom:14px; color:var(--ink);">Detection → Recognition pipeline</h3>
+        <p style="margin-bottom:10px;"><b style="color:var(--blue-deep);">YOLOv8-Face</b> locates the face in the frame and crops it with a safety margin.</p>
+        <p style="margin-bottom:10px;"><b style="color:var(--blue-deep);">CLAHE</b> equalizes lighting before the crop is standardized to 160×160.</p>
+        <p style="margin-bottom:10px;"><b style="color:var(--blue-deep);">FaceNet-512</b> outputs a 512-dimensional embedding, pretrained on 3M images.</p>
+        <p><b style="color:var(--blue-deep);">Euclidean distance</b> below 0.70 against the stored database confirms identity; above it, the scan is rejected.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="predict">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">AI Engine — Prediction</div>
+      <h2>An early warning, five weeks ahead of the midterm.</h2>
+      <p>A transparent Linear Regression model was chosen deliberately over black-box alternatives: every prediction can be verified by hand, and the model retrains in under a second.</p>
+    </div>
+    <div class="predict-card reveal">
+      <div class="eq equation">pred60 = <span class="k">1.099</span> + <span class="k">1.493</span>·Attendance + <span class="k">0.527</span>·Assignments + <span class="k">0.513</span>·Quizzes + <span class="k">0.971</span>·Practical + <span class="k">1.909</span>·Midterm</div>
+      <div class="metric-grid" style="margin-top:24px; grid-template-columns:repeat(3,1fr);">
+        <div class="metric"><div class="val"><span class="countup" data-target="0.847" data-decimals="3">0.000</span></div><div class="lbl">R² (variance explained)</div></div>
+        <div class="metric"><div class="val"><span class="countup" data-target="4.23" data-decimals="2">0.00</span></div><div class="lbl">RMSE, grade points</div></div>
+        <div class="metric hi"><div class="val"><span class="countup" data-target="12" data-suffix="k">0k</span></div><div class="lbl">Training samples</div></div>
+      </div>
+      <div class="weeks-line"></div>
+      <div class="weeks">
+        <div class="week"><span>WEEK 1</span><b>No data yet</b></div>
+        <div class="week now"><span>WEEK 3</span><b style="color:var(--orange-deep);">ClassTrack flags risk</b></div>
+        <div class="week"><span>WEEK 5</span><b>Faculty intervenes</b></div>
+        <div class="week mid"><span>WEEK 8</span><b style="color:var(--mute);">Traditional midterm</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="results" style="background:var(--white); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Validation</div>
+      <h2>Tested in a real lecture, not just a lab.</h2>
+      <p>Beyond unit and integration testing, ClassTrack ran a live pilot during an Object-Oriented Programming section at MTI, with two teaching assistants and a full classroom of students.</p>
+    </div>
+    <div class="result-grid reveal-stagger">
+      <div class="rcard">
+        <div class="big"><span class="countup" data-target="47" data-suffix=" / 47">0 / 47</span></div>
+        <div class="sm">System test cases passed</div>
+      </div>
+      <div class="rcard orange">
+        <div class="big"><span class="countup" data-target="0">0</span></div>
+        <div class="sm">Cross-role data leaks in security testing</div>
+      </div>
+      <div class="rcard">
+        <div class="big"><span class="countup" data-target="100" data-suffix="%">0%</span></div>
+        <div class="sm">Records synced after 72h offline queue test</div>
+      </div>
+      <div class="rcard orange">
+        <div class="big"><span class="countup" data-target="83.2" data-suffix="%" data-decimals="1">0%</span></div>
+        <div class="sm">Unit test code coverage</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="team">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">The Team</div>
+      <h2>Faculty of Computers and Artificial Intelligence — Class of 2026</h2>
+    </div>
+    <div class="team-grid reveal-stagger">
+      <div class="member">
+        <div class="avatar">
+          <img src="hossam.png" alt="Hossam Khaled Bahnasy" onerror="this.style.display='none'; this.parentElement.textContent='HK';">
+        </div>
+        <p>Hossam Khaled Bahnasy</p>
+      </div>
+      <div class="member">
+        <div class="avatar">
+          <img src="malak.jpg" alt="Malak Magdy Zahran" onerror="this.style.display='none'; this.parentElement.textContent='MM';">
+        </div>
+        <p>Malak Magdy Zahran</p>
+      </div>
+      <div class="member">
+        <div class="avatar">
+          <img src="ahmed jaber.jpg" alt="Ahmed Gaber Abd El-Gawad" onerror="this.style.display='none'; this.parentElement.textContent='AG';">
+        </div>
+        <p>Ahmed Gaber Abd El-Gawad</p>
+      </div>
+      <div class="member">
+        <div class="avatar">
+          <img src="hazem.png" alt="Hazem Mohamed Labib" onerror="this.style.display='none'; this.parentElement.textContent='HM';">
+        </div>
+        <p>Hazem Mohamed Labib</p>
+      </div>
+      <div class="member">
+        <div class="avatar">
+          <img src="eslam.png" alt="Eslam Ahmed Elsayed" onerror="this.style.display='none'; this.parentElement.textContent='EA';">
+        </div>
+        <p>Eslam Ahmed Elsayed</p>
+      </div>
+      <div class="member">
+        <div class="avatar">
+          <img src="awad.png" alt="Ahmed Awad Hamed" onerror="this.style.display='none'; this.parentElement.textContent='AA';">
+        </div>
+        <p>Ahmed Awad Hamed</p>
+      </div>
+      <div class="member">
+        <div class="avatar">
+          <img src="ayman.png" alt="Abd El-Rahman Ayman Khairy" onerror="this.style.display='none'; this.parentElement.textContent='AK';">
+        </div>
+        <p>Abd El-Rahman Ayman Khairy</p>
+      </div>
+      <div class="member">
+        <div class="avatar">
+          <img src="ehab.png" alt="Ahmed Ehab Raouf" onerror="this.style.display='none'; this.parentElement.textContent='AE';">
+        </div>
+        <p>Ahmed Ehab Raouf</p>
+      </div>
+    </div>
+    <div class="supervise">Supervised by <b>Prof. Dr. Hanafy Mahmoud Ismail</b> — with T.A. Gina Hamdy, T.A. Nayra Mostafa, and T.A. Esraa Salah</div>
+  </div>
+</section>
+
+<section class="closer">
+  <div class="wrap reveal">
+    <div class="eyebrow" style="justify-content:center; color:#ffb380;">Next Step</div>
+    <h2>Built at MTI University. Ready for wider deployment.</h2>
+    <p>ClassTrack is a working, pilot-tested system — not a prototype. We'd welcome the opportunity to present it in person and discuss how it could support Egypt's digital-transformation goals in higher education.</p>
+    <a href="mailto:" class="btn btn-primary">Get in touch</a>
+  </div>
+</section>
+
+<footer>ClassTrack — A Mobile System for Student Performance Monitoring &amp; QR-Based Attendance · MTI University, 2025/2026</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- scroll progress bar ---------- */
+  var progressBar = document.getElementById('progress');
+  function updateProgress(){
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    var pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    progressBar.style.width = pct + '%';
+  }
+  window.addEventListener('scroll', updateProgress, {passive:true});
+  updateProgress();
+
+  /* ---------- active nav link on scroll ---------- */
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll('nav a[href^="#"]'));
+  var navSections = navLinks
+    .map(function(link){
+      var id = link.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      return el ? {link: link, el: el} : null;
+    })
+    .filter(Boolean);
+
+  function updateActiveNav(){
+    var fromTop = window.scrollY + 110;
+    var current = null;
+    navSections.forEach(function(entry){
+      if (entry.el.offsetTop <= fromTop) current = entry;
+    });
+    navLinks.forEach(function(l){ l.classList.remove('active'); });
+    if (current) current.link.classList.add('active');
+  }
+  window.addEventListener('scroll', updateActiveNav, {passive:true});
+  updateActiveNav();
+
+  /* ---------- smooth-scroll with nav offset ---------- */
+  var navHeight = document.querySelector('nav').offsetHeight;
+  navLinks.forEach(function(link){
+    link.addEventListener('click', function(e){
+      var id = link.getAttribute('href');
+      var target = document.querySelector(id);
+      if (!target) return;
+      e.preventDefault();
+      var top = target.getBoundingClientRect().top + window.scrollY - (navHeight + 16);
+      window.scrollTo({top: top, behavior: reduceMotion ? 'auto' : 'smooth'});
+      history.pushState(null, '', id);
+    });
+  });
+
+  /* ---------- count-up numbers ---------- */
+  function animateCountUp(el){
+    if (el.dataset.counted === '1') return;
+    el.dataset.counted = '1';
+
+    var target = parseFloat(el.getAttribute('data-target'));
+    if (isNaN(target)) return;
+    var decimals = parseInt(el.getAttribute('data-decimals') || '0', 10);
+    var suffix = el.getAttribute('data-suffix') || '';
+
+    if (reduceMotion){
+      el.textContent = target.toFixed(decimals) + suffix;
+      return;
+    }
+
+    var duration = 1300;
+    var startTime = null;
+
+    function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
+
+    function step(timestamp){
+      if (startTime === null) startTime = timestamp;
+      var elapsed = timestamp - startTime;
+      var progress = Math.min(elapsed / duration, 1);
+      var eased = easeOutCubic(progress);
+      var current = target * eased;
+      el.textContent = current.toFixed(decimals) + suffix;
+      if (progress < 1){
+        requestAnimationFrame(step);
+      } else {
+        el.textContent = target.toFixed(decimals) + suffix;
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  /* ---------- distance bars ---------- */
+  function animateDistanceBar(row){
+    if (row.classList.contains('in')) return;
+    row.classList.add('in');
+    var fill = row.querySelector('.dbar-fill');
+    var target = fill.style.getPropertyValue('--target-width') || getComputedStyle(fill).getPropertyValue('--target-width');
+    requestAnimationFrame(function(){
+      fill.style.width = target;
+    });
+  }
+
+  /* ---------- intersection observer for reveals ---------- */
+  var revealTargets = document.querySelectorAll('.reveal, .reveal-stagger');
+  var countupTargets = document.querySelectorAll('.countup');
+  var dbarRows = document.querySelectorAll('.dbar-row');
+  var equationTarget = document.querySelector('.equation');
+
+  if ('IntersectionObserver' in window && !reduceMotion){
+    var revealObserver = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if (entry.isIntersecting){
+          entry.target.classList.add('in');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, {threshold:0.15, rootMargin:'0px 0px -60px 0px'});
+    revealTargets.forEach(function(t){ revealObserver.observe(t); });
+
+    var countupObserver = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if (entry.isIntersecting){
+          animateCountUp(entry.target);
+          countupObserver.unobserve(entry.target);
+        }
+      });
+    }, {threshold:0.6});
+    countupTargets.forEach(function(t){ countupObserver.observe(t); });
+
+    var dbarObserver = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if (entry.isIntersecting){
+          animateDistanceBar(entry.target);
+          dbarObserver.unobserve(entry.target);
+        }
+      });
+    }, {threshold:0.4});
+    dbarRows.forEach(function(t){ dbarObserver.observe(t); });
+
+  } else {
+    /* reduced motion or no IO support: show everything immediately */
+    revealTargets.forEach(function(t){ t.classList.add('in'); });
+    countupTargets.forEach(function(t){ animateCountUp(t); });
+    dbarRows.forEach(function(t){ animateDistanceBar(t); });
+    if (equationTarget) equationTarget.classList.add('in');
+  }
+
+  /* equation pop-in rides along with its parent .reveal card */
+  if (equationTarget && !reduceMotion){
+    var eqCard = equationTarget.closest('.reveal');
+    if (eqCard){
+      var eqObserver = new IntersectionObserver(function(entries){
+        entries.forEach(function(entry){
+          if (entry.isIntersecting){
+            equationTarget.classList.add('in');
+            eqObserver.unobserve(entry.target);
+          }
+        });
+      }, {threshold:0.3});
+      eqObserver.observe(eqCard);
+    }
+  }
+
+})();
+</script>
+
+</body>
+</html>
